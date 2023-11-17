@@ -2,7 +2,9 @@
 
 ### Introduction
 
-**Unlimited Content Generator** is a AI tool to help you generate text contents, social posts, social post images and shorts from a YouTube video link.
+**Unlimited Content Generator** is an AI tool to help you generate text contents, social posts, social post images and shorts from a YouTube video link. espesially for Chinese users.
+
+NOTE: This project is now tunning specifically for church
 
 ### Model Usage
 * OpenAI Whisper

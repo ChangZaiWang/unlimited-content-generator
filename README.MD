@@ -1,4 +1,4 @@
-# Unlimited Contect Generator
+# Unlimited Content Generator
 
 ### Introduction
 

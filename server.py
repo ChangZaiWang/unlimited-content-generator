@@ -5,9 +5,9 @@ import os
 import re
 import requests
 
+import openai
 from openai import OpenAI
 import yt_dlp
-# from pytube import YouTube
 from pydub import AudioSegment
 
 from moviepy.editor import *
@@ -76,6 +76,9 @@ def download_video(URL):
 
 def extract_audio(video_file):
     try:
+        if not os.path.exists(VIDEO_PATH + video_file):
+            return f"Error: Video file {video_file} not found."
+        
         video = VideoFileClip(VIDEO_PATH + video_file)
         audio = video.audio
         audio_file = AUDIO_PATH + video_file.replace("mp4", "mp3")
@@ -87,44 +90,59 @@ def extract_audio(video_file):
         return f"An unexpected error occurred: {e}"
 
 def compress_audio(audio_file):
-    ## handle still > 25MB after compressed ##
-    ## file not found (maybe on cloud will happed) ##
-    ## other error handling ##
+    try: 
+        if not os.path.exists(AUDIO_PATH + audio_file):
+            return f"Error: Audio file {audio_file} not found."
+        
+        file_size = os.path.getsize(AUDIO_PATH + audio_file)
+        if file_size <= 25000000:
+            return audio_file
+        
+        audio = AudioSegment.from_file(AUDIO_PATH + audio_file)
 
-    file_size = os.path.getsize(AUDIO_PATH + audio_file)
-    if file_size <= 25000000:
-        return audio_file
+        # Set output parameters
+        channels = 1  # mono
+        frame_rate = 16000  # sample rate
+        bit_rate = "24k"  # 位元率
+
+        # Audio transcode and save
+        output_audio = audio.set_channels(channels).set_frame_rate(frame_rate)
+        output_file = "compressed_" + audio_file
+        output_audio.export(AUDIO_PATH + output_file, format="mp3", bitrate=bit_rate)
+
+        # Check the size of the compressed 
+        compressed_file_size = os.path.getsize(AUDIO_PATH + output_file)
+        if compressed_file_size > 25000000:
+            print("File too big..., compress again...")
+            bit_rate = "16k"  # Lower bitrate for a second compression
+            output_audio.export(os.path.join(AUDIO_PATH, output_file), format="mp3", bitrate=bit_rate)
+
+        return output_file
     
-    audio = AudioSegment.from_file(AUDIO_PATH + audio_file)
-
-    # Set output parameters
-    channels = 1  # mono
-    frame_rate = 16000  # sample rate
-    bit_rate = "24k"  # 位元率
-
-    # Audio transcode
-    output_audio = audio.set_channels(channels).set_frame_rate(frame_rate)
-
-    # Save output audio
-    output_file = "compressed_" + audio_file
-    output_audio.export(AUDIO_PATH + output_file, format="mp3", bitrate=bit_rate)
-
-    return output_file
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
 
 def get_transcript(audio_file):
-    ## other error handling ##
-
-    audio = open(AUDIO_PATH + audio_file, "rb")
-    transcript = client.audio.transcriptions.create(
-        model="whisper-1", 
-        file=audio, 
-        language="zh",
-        response_format="srt"
-    )
-    transcript = transcript.replace(" ", "，")
+    try:
+        if not os.path.exists(AUDIO_PATH + audio_file):
+            return f"Audio file {audio_file} not found."
         
+        audio = open(AUDIO_PATH + audio_file, "rb")
+        transcript = client.audio.transcriptions.create(
+            model="whisper-1", 
+            file=audio, 
+            language="zh",
+            response_format="srt"
+        )
+        transcript = transcript.replace(" ", "，")
+            
+        return transcript
     
-    return transcript
+    except openai.OpenAIError as e:
+        return f"OpenAI API error: {e}"
+    
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
 
 def save_file(input, path, filename):
     with open(path + filename, "w") as file:

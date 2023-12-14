@@ -39,41 +39,52 @@ check_directory(IMAGE_PATH)
 
 
 def download_video(URL):
-    ## get video length, if too long, download deny ##
-    ## test shorts download ##
-    ## other error handling ##
+    try:
+        # get video title
+        with yt_dlp.YoutubeDL() as ydl:
+            info = ydl.extract_info(URL, download=False)
 
-    # get video title
-    with yt_dlp.YoutubeDL() as ydl:
-        info = ydl.extract_info(URL, download=False)
+        title = info["title"]
+        duration = info.get("duration", 0)  # 使用 get() 避免當無法獲取 duration 時的 KeyError
 
-    title = info["title"]
-    
-    # set download options
-    ydl_opts = {
+        if duration > 7200:
+            return "Sorry! Your video is too long to be processed."
+
+        # set download options
+        ydl_opts = {
             "format": "bestvideo+bestaudio/best",
             "outtmpl": f"{VIDEO_PATH}/{title}.%(ext)s"
         }
 
-    # download video
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download(URL)
+        # download video
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([URL])  # 將 URL 放入一個列表中
 
-    # rename ext. to mp4
-    for f in os.listdir(VIDEO_PATH):
-        if f.startswith(title):
-            os.rename(f"{VIDEO_PATH}/{f}", f"{VIDEO_PATH}/{title}.mp4")
-            break
-    
-    return title + ".mp4"
+        # rename ext. to mp4
+        for f in os.listdir(VIDEO_PATH):
+            if f.startswith(title):
+                os.rename(f"{VIDEO_PATH}/{f}", f"{VIDEO_PATH}/{title}.mp4")
+                break
+
+        return title + ".mp4"
+
+    except yt_dlp.DownloadError as e:
+        return f"Error downloading video: {e}"
+
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
 
 def extract_audio(video_file):
-    video = VideoFileClip(VIDEO_PATH + video_file)
-    audio = video.audio
-    audio_file = AUDIO_PATH + video_file.replace("mp4", "mp3")
-    audio.write_audiofile(audio_file)
+    try:
+        video = VideoFileClip(VIDEO_PATH + video_file)
+        audio = video.audio
+        audio_file = AUDIO_PATH + video_file.replace("mp4", "mp3")
+        audio.write_audiofile(audio_file)
     
-    return video_file.replace("mp4", "mp3")
+        return video_file.replace("mp4", "mp3")
+    
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
 
 def compress_audio(audio_file):
     ## handle still > 25MB after compressed ##

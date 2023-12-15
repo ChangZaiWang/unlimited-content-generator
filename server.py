@@ -162,61 +162,76 @@ def extract_text_from_srt(srt_string):
     return result
 
 def generate_sermon(text):
-    ## other error handling ##
-    
-    response = client.chat.completions.create(
-        model = "gpt-4-1106-preview",
-        messages = [
-        {"role": "system", "content": "你是一位牧師，下面將提供逐字稿，請加上適當的標點符號，整理成有結構且易讀的內容，並且為產出的內容適當的命名，同時為每一段下一個小標題。"},
-        {"role": "user", "content": text}
-        ]
-    )
+    try:
+        response = client.chat.completions.create(
+            model = "gpt-4-1106-preview",
+            messages = [
+            {"role": "system", "content": "你是一位牧師，下面將提供逐字稿，請加上適當的標點符號，整理成有結構且易讀的內容，並且為產出的內容適當的命名，同時為每一段下一個小標題。"},
+            {"role": "user", "content": text}
+            ]
+        )
 
-    return response.choices[0].message.content
+        return response.choices[0].message.content
+    
+    except openai.OpenAIError as e:
+        return f"OpenAI API error: {e}"
+    
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
 
 def generate_social_post(text, style):
-    ## other error handling ##
+    try:
+        response = client.chat.completions.create(
+            model = "gpt-4-1106-preview",
+            messages = [
+            {"role": "system", "content": f"你是一個厲害的社群媒體經營者，下面將提供牧師的講章，請產生五篇社群貼文，並加上主題標籤。風格：{style}"},
+            {"role": "user", "content": text}
+            ]
+        )
 
-    response = client.chat.completions.create(
-        model = "gpt-4-1106-preview",
-        messages = [
-        {"role": "system", "content": f"你是一個厲害的社群媒體經營者，下面將提供牧師的講章，請產生五篇社群貼文，並加上主題標籤。風格：{style}"},
-        {"role": "user", "content": text}
-        ]
-    )
-
-    return response.choices[0].message.content
+        return response.choices[0].message.content
+    
+    except openai.OpenAIError as e:
+        return f"OpenAI API error: {e}"
+    
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
 
 def generate_clip(text):
-    ## other eror handling ##
+    try:
+        response = client.chat.completions.create(
+            model = "gpt-4-1106-preview",
+            messages = [
+            {"role": "system", "content": "你是一個厲害的短影音剪輯師，下面將提供一份字幕檔，請根據字幕檔的內容，給予五個你認為可以剪輯成長度為60秒的短影音段落。時間段落只是請依照SRT字幕檔的格式：時間 --> 時間"},
+            {"role": "user", "content": text}
+            ]
+        )
+        clips = response.choices[0].message.content
 
-    response = client.chat.completions.create(
-        model = "gpt-4-1106-preview",
-        messages = [
-        {"role": "system", "content": "你是一個厲害的短影音剪輯師，下面將提供一份字幕檔，請根據字幕檔的內容，給予五個你認為可以剪輯成長度為60秒的短影音段落。時間段落只是請依照SRT字幕檔的格式：時間 --> 時間"},
-        {"role": "user", "content": text}
-        ]
-    )
-    clips = response.choices[0].message.content
+        matches = re.findall(r'\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}', clips)
+        if not matches:
+            print("Clips not found, trying again")
+            return generate_clip(text)
 
-    matches = re.findall(r'\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}', clips)
-    if not matches:
-        print("Clips not found, trying again")
-        return generate_clip(text)
-
-    return matches
+        return matches
+    
+    except openai.OpenAIError as e:
+        return f"OpenAI API error: {e}"
+    
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
 
 def generate_shorts(matches, video_file):
-    ## start_time & end_time uses split() ##
-    ## output original size of the clips ##
-
-    videos = []
+    file_num = 1
     for match in matches:
-        start_time = match[0:12]
-        end_time = match[17:]
+        time = match.split("，-->，")
+        start_time = time[0]
+        end_time = time[1]
+
+        sixteen_by_nine_video = VideoFileClip(VIDEO_PATH + video_file).subclip((start_time), (end_time))
         
-        video = VideoFileClip(VIDEO_PATH + video_file).subclip((start_time), (end_time))
-        w, h = video.size
+        nine_by_sixteen_video = VideoFileClip(VIDEO_PATH + video_file).subclip((start_time), (end_time))
+        w, h = nine_by_sixteen_video.size
         target_ratio = 1080 / 1920
         current_ratio = w / h
 
@@ -225,48 +240,59 @@ def generate_shorts(matches, video_file):
             new_width = int(h * target_ratio)
             x_center = w / 2
             y_center = h / 2
-            video = crop_vid.crop(video, width=new_width, height=h, x_center=x_center, y_center=y_center)
+            nine_by_sixteen_video = crop_vid.crop(nine_by_sixteen_video, width=new_width, height=h, x_center=x_center, y_center=y_center)
         else:
             # The video is taller than the desired aspect ratio, crop the height
             new_height = int(w / target_ratio)
             x_center = w / 2
             y_center = h / 2
-            video = crop_vid.crop(video, width=w, height=new_height, x_center=x_center, y_center=y_center)
+            nine_by_sixteen_video = crop_vid.crop(nine_by_sixteen_video, width=w, height=new_height, x_center=x_center, y_center=y_center)
 
-        videos.append(video)
+        
+        sixteen_by_nine_video.write_videofile(
+            SHORTS_PATH + f"original_clip_{file_num}.mp4", 
+            codec='libx264', 
+            audio_codec='aac', 
+            temp_audiofile='temp-audio.m4a', 
+            remove_temp=True
+        )
+        print(f"Saved file original_clip_{file_num}")
 
-    file_num = 1
-    for video in videos:
-        video.write_videofile(
+        nine_by_sixteen_video.write_videofile(
             SHORTS_PATH + f"shorts_{file_num}.mp4", 
             codec='libx264', 
             audio_codec='aac', 
             temp_audiofile='temp-audio.m4a', 
             remove_temp=True
         )
-        print(f"Saved file out_video_{file_num}")
+        print(f"Saved file shorts_{file_num}")
         file_num += 1
 
 def generate_social_post_image(prompt, style):
-    ## other error handling ##
+    try:
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=f"請針對以下內容，設計適合的社群貼文圖，但不要出現文字。\n 風格：{style}。\n" + prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1
+        )
+        image_url = response.data[0].url
+        print(image_url)
 
-    response = client.images.generate(
-        model = "dall-e-3",
-        prompt = f"請針對以下內容，設計適合的社群貼文圖，但不要出現文字。\n 風格：{style}。\n" + prompt,
-        size = "1024x1024",
-        quality = "standard",
-        n = 1
-    )
-    image_url = response.data[0].url
-    print(image_url)
+        image = requests.get(image_url)
+        if image.status_code == 200:
+            with open(IMAGE_PATH + "image.png", "wb") as f:
+                f.write(image.content)
+            print("Image downloaded successfully.")
+        else:
+            raise Exception(f"Failed to download image. Status code: {image.status_code}")
 
-    image = requests.get(image_url)
-    if image.status_code == 200:
-        with open(IMAGE_PATH + "image.png", "wb") as f:
-            f.write(image.content)
-        print("Image downloaded successfully.")
-    else:
-        print("Failed to download image. Status code:", image.status_code)
+    except openai.OpenAIError as e:
+        return f"OpenAI API error: {e}"
+
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
 
 async def handler(websocket, path):
     async for message in websocket:

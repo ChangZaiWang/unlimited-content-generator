@@ -202,7 +202,7 @@ def generate_clip(text):
         response = client.chat.completions.create(
             model = "gpt-4-1106-preview",
             messages = [
-            {"role": "system", "content": "你是一個厲害的短影音剪輯師，下面將提供一份字幕檔，請根據字幕檔的內容，給予五個你認為可以剪輯成長度為60秒的短影音段落。時間段落只是請依照SRT字幕檔的格式：時間 --> 時間"},
+            {"role": "system", "content": "你是一個厲害的短影音剪輯師，下面將提供一份字幕檔，請根據字幕檔的內容，給予五個你認為可以剪輯成長度為60秒的短影音段落。時間段落指示請依照SRT字幕檔的格式：時間 --> 時間"},
             {"role": "user", "content": text}
             ]
         )
@@ -224,7 +224,7 @@ def generate_clip(text):
 def generate_shorts(matches, video_file):
     file_num = 1
     for match in matches:
-        time = match.split("，-->，")
+        time = match.split(" --> ")
         start_time = time[0]
         end_time = time[1]
 
@@ -318,7 +318,7 @@ async def handler(websocket, path):
             generate_social_post_image(image_prompt, image_style)
 
             responce = f"Processing completed for {yt_url}"
-        except:
+        except Exception as e:
             responce = f"Error processing {yt_url}: {str(e)}"
 
         await websocket.send(responce)

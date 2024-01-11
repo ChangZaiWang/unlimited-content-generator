@@ -223,50 +223,51 @@ def generate_clip(text):
 
 def generate_shorts(matches, video_file):
     file_num = 1
+    pattern = re.compile(r'(\d{2}:\d{2}:\d{2},\d{3})[， ]*-->[， ]*(\d{2}:\d{2}:\d{2},\d{3})')
     for match in matches:
-        time = match.split(" --> ")
-        start_time = time[0]
-        end_time = time[1]
+        searched = pattern.search(match)
+        if searched:
+            start_time, end_time = searched.groups()
 
-        sixteen_by_nine_video = VideoFileClip(VIDEO_PATH + video_file).subclip((start_time), (end_time))
-        
-        nine_by_sixteen_video = VideoFileClip(VIDEO_PATH + video_file).subclip((start_time), (end_time))
-        w, h = nine_by_sixteen_video.size
-        target_ratio = 1080 / 1920
-        current_ratio = w / h
+            sixteen_by_nine_video = VideoFileClip(VIDEO_PATH + video_file).subclip((start_time), (end_time))
+            
+            nine_by_sixteen_video = VideoFileClip(VIDEO_PATH + video_file).subclip((start_time), (end_time))
+            w, h = nine_by_sixteen_video.size
+            target_ratio = 1080 / 1920
+            current_ratio = w / h
 
-        if current_ratio > target_ratio:
-            # The video is wider than the desired aspect ratio, crop the width
-            new_width = int(h * target_ratio)
-            x_center = w / 2
-            y_center = h / 2
-            nine_by_sixteen_video = crop_vid.crop(nine_by_sixteen_video, width=new_width, height=h, x_center=x_center, y_center=y_center)
-        else:
-            # The video is taller than the desired aspect ratio, crop the height
-            new_height = int(w / target_ratio)
-            x_center = w / 2
-            y_center = h / 2
-            nine_by_sixteen_video = crop_vid.crop(nine_by_sixteen_video, width=w, height=new_height, x_center=x_center, y_center=y_center)
+            if current_ratio > target_ratio:
+                # The video is wider than the desired aspect ratio, crop the width
+                new_width = int(h * target_ratio)
+                x_center = w / 2
+                y_center = h / 2
+                nine_by_sixteen_video = crop_vid.crop(nine_by_sixteen_video, width=new_width, height=h, x_center=x_center, y_center=y_center)
+            else:
+                # The video is taller than the desired aspect ratio, crop the height
+                new_height = int(w / target_ratio)
+                x_center = w / 2
+                y_center = h / 2
+                nine_by_sixteen_video = crop_vid.crop(nine_by_sixteen_video, width=w, height=new_height, x_center=x_center, y_center=y_center)
 
-        
-        sixteen_by_nine_video.write_videofile(
-            SHORTS_PATH + f"original_clip_{file_num}.mp4", 
-            codec='libx264', 
-            audio_codec='aac', 
-            temp_audiofile='temp-audio.m4a', 
-            remove_temp=True
-        )
-        print(f"Saved file original_clip_{file_num}")
+            
+            sixteen_by_nine_video.write_videofile(
+                SHORTS_PATH + f"original_clip_{file_num}.mp4", 
+                codec='libx264', 
+                audio_codec='aac', 
+                temp_audiofile='temp-audio.m4a', 
+                remove_temp=True
+            )
+            print(f"Saved file original_clip_{file_num}")
 
-        nine_by_sixteen_video.write_videofile(
-            SHORTS_PATH + f"shorts_{file_num}.mp4", 
-            codec='libx264', 
-            audio_codec='aac', 
-            temp_audiofile='temp-audio.m4a', 
-            remove_temp=True
-        )
-        print(f"Saved file shorts_{file_num}")
-        file_num += 1
+            nine_by_sixteen_video.write_videofile(
+                SHORTS_PATH + f"shorts_{file_num}.mp4", 
+                codec='libx264', 
+                audio_codec='aac', 
+                temp_audiofile='temp-audio.m4a', 
+                remove_temp=True
+            )
+            print(f"Saved file shorts_{file_num}")
+            file_num += 1
 
 def generate_social_post_image(prompt, style):
     try:
